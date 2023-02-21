@@ -1,9 +1,9 @@
 
-/****************************************************************************************************************************************
-													SUBQUERY
-****************************************************************************************************************************************/
+/*********************************************************************************************************************************************************************
+									SUBQUERY 
+*********************************************************************************************************************************************************************/
 
-/****************************************** 1 ******************************************************************
+/**************************************************************************** 1 *************************************************************************************
 Provide the name of the sales_rep in each region with the largest amount of total_amt_usd sales.*/
 
 SELECT sub3.rep_name, sub3.region_name, sub3.amount
@@ -37,7 +37,7 @@ ORDER BY amount DESC
 
 
 
-/************************************************* 2 ******************************************************************
+/*********************************************************************** 2 ******************************************************************************************
 For the region with the largest (sum) of sales total_amt_usd, how many total (count) orders were placed?*/
 
 SELECT sub3.region_name, sub3.amount, sub3.total_orders
@@ -93,7 +93,8 @@ HAVING SUM(o.total_amt_usd) = (
               JOIN region r
               ON r.id = s.region_id
               GROUP BY r.name) sub);
-/******************************************************* 3 *******************************************************************
+	      
+/******************************************************************** 3 *****************************************************************************************
 
 How many accounts had more total purchases than the account name which has bought the most standard_qty paper throughout their lifetime as a customer? */
 
@@ -154,9 +155,8 @@ FROM (SELECT a.name, SUM(o.total)
                          LIMIT 1) inner_tab)
              ) counter_tab;      
 
-/*************************** 4 ********************
-For the customer that spent the most (in total over their lifetime as a customer) total_amt_usd, how many web_events did they have for each channel?
-****************************************************/
+/************************************************************************************** 4 *************************************************************************
+For the customer that spent the most (in total over their lifetime as a customer) total_amt_usd, how many web_events did they have for each channel? */
 
 SELECT table1.name, table2.channel, table2.count
 FROM
@@ -191,9 +191,8 @@ ON a.id = w.account_id AND a.id =  (SELECT id
 GROUP BY 1, 2
 ORDER BY 3 DESC;
 
-/*********************** 5 *************************
-What is the lifetime average amount spent in terms of total_amt_usd for the top 10 total spending accounts?
-****************************************************/
+/************************************************************************** 5 **************************************************************************************
+What is the lifetime average amount spent in terms of total_amt_usd for the top 10 total spending accounts? */
 
 SELECT ROUND(AVG(table1.amount),2) AS average_amount
 FROM(SELECT a.name, SUM(total_amt_usd) AS amount
@@ -205,7 +204,6 @@ FROM(SELECT a.name, SUM(total_amt_usd) AS amount
 		LIMIT 10) table1
 
 
-
 SELECT AVG(tot_spent)
 FROM (SELECT a.id, a.name, SUM(o.total_amt_usd) tot_spent
       FROM orders o
@@ -215,9 +213,9 @@ FROM (SELECT a.id, a.name, SUM(o.total_amt_usd) tot_spent
       ORDER BY 3 DESC
        LIMIT 10) temp;
 
-/************************** 6 **********************
-What is the lifetime average amount spent in terms of total_amt_usd, including only the companies that spent more per order, on average, than the average of all orders?
-****************************************************/
+/************************************************************************************ 6 ******************************************************************************
+What is the lifetime average amount spent in terms of total_amt_usd, including only the companies that spent more per order, on average, than the average of
+all orders? */
 
 SELECT ROUND(AVG(tab1.total_amount), 2)
 FROM (
@@ -277,15 +275,16 @@ WHERE tab2.com_order > (
 	)		
 ORDER BY 2 DESC */
 
--------- SUBQUERIES WITH CTE common table expression ------
+/*********************************************************************************************************************************************************************
+					------ SUBQUERIES WITH CTE common table expression ------
+**********************************************************************************************************************************************************************/
 
-/************************* 1 **************************
-Provide the name of the sales_rep in each region with the largest amount of total_amt_usd sales.
-********************************************************/
+/******************************************************************* 1 ***********************************************************************************************
+Provide the name of the sales_rep in each region with the largest amount of total_amt_usd sales. */
 
 WITH 
 	sales_region AS (
-		SELECT s.name AS sales_rep, r.name As region, SUM(					o.total_amt_usd) AS total_amount
+		SELECT s.name AS sales_rep, r.name As region, SUM(o.total_amt_usd) AS total_amount
 		FROM sales_reps AS s
 		JOIN accounts As a
 		ON s.id = a.sales_rep_id
@@ -328,9 +327,8 @@ FROM t1
 JOIN t2
 ON t1.region_name = t2.region_name AND t1.total_amt = t2.total_amt;
 
-/********************** 2 *****************************
-For the region with the largest sales total_amt_usd, how many total orders were placed?
-*******************************************************
+/************************************************************************* 2 *****************************************************************************************
+For the region with the largest sales total_amt_usd, how many total orders were placed? *\
 WITH
 	region_amount AS (
 		SELECT r.name AS region, SUM(o.total_amt_usd) AS total_amount
@@ -385,9 +383,8 @@ ON r.id = s.region_id
 GROUP BY r.name
 HAVING SUM(o.total_amt_usd) = (SELECT * FROM t2);
 
-/************************* 3 *************************
-How many accounts had more total purchases than the account name which has bought the most standard_qty paper throughout their lifetime as a customer? 
-********************************************************/
+/******************************************************************* 3 *********************************************************************************************
+How many accounts had more total purchases than the account name which has bought the most standard_qty paper throughout their lifetime as a customer? */
 
 WITH 
 	t1 AS (
@@ -442,8 +439,8 @@ t2 AS (
 SELECT COUNT(*)
 FROM t2
 
-/***************************** 4 ***************************
-For the customer that spent the most (in total over their lifetime as a customer) total_amt_usd, how many web_events did they have for each channel? ***********************/
+/************************************************************************* 4 ****************************************************************************************
+For the customer that spent the most (in total over their lifetime as a customer) total_amt_usd, how many web_events did they have for each channel? */
 
 WITH
 	t1 AS (
@@ -481,7 +478,7 @@ ON a.id = w.account_id AND a.id =  (SELECT id FROM t1)
 GROUP BY 1, 2
 ORDER BY 3 DESC;
 
-/************************ 5 ***************************
+/*********************************************************************** 5 *******************************************************************************************
 What is the lifetime average amount spent in terms of total_amt_usd for the top 10 total spending accounts? */
 
 WITH
@@ -507,8 +504,9 @@ WITH t1 AS (
 SELECT AVG(tot_spent)
 FROM t1;
 
-/************************* 6 *************************
-What is the lifetime average amount spent in terms of total_amt_usd, including only the companies that spent more per order, on average, than the average of all orders. */
+/************************************************************************ 6 ******************************************************************************************
+What is the lifetime average amount spent in terms of total_amt_usd, including only the companies that spent more per order, on average, than the average of 
+all orders. */
 
 WITH
 	t1 AS (		
@@ -527,12 +525,13 @@ WITH
 SELECT AVG(avg_amt) FROM t2
 
 
-/*********************************************************
-						DATA CLEANING			
-*********************************************************/
+/*********************************************************************************************************************************************************************
+										DATA CLEANING			
+**********************************************************************************************************************************************************************/
 
-/*								1
-In the accounts table, there is a column holding the website for each company. The last three digits specify what type of web address they are using. A list of extensions (and pricing) is provided here. Pull these extensions and provide how many of each website type exist in the accounts table. */
+/******************************************************************* 1 **********************************************************************************************
+In the accounts table, there is a column holding the website for each company. The last three digits specify what type of web address they are using. A list of 
+extensions (and pricing) is provided here. Pull these extensions and provide how many of each website type exist in the accounts table. */
 
 SELECT RIGHT(website, 3) AS web_type, COUNT(600) AS company_count
 FROM accounts
@@ -544,8 +543,9 @@ FROM accounts
 GROUP BY 1
 ORDER BY 2 DESC;
 
-/*								2
-There is much debate about how much the name (or even the first letter of a company name) matters. Use the accounts table to pull the first letter of each company name to see the distribution of company names that begin with each letter (or number). */
+/********************************************************************************** 2 ******************************************************************************
+There is much debate about how much the name (or even the first letter of a company name) matters. Use the accounts table to pull the first letter of each 
+company name to see the distribution of company names that begin with each letter (or number). */
 
 SELECT LEFT(name, 1) AS first_letter, COUNT(1000) AS first_letter_count FROM accounts
 GROUP BY 1
@@ -556,8 +556,9 @@ FROM accounts
 GROUP BY 1
 ORDER BY 2 DESC;
 
-/*								3
-Use the accounts table and a CASE statement to create two groups: one group of company names that start with a number and the second group of those company names that start with a letter. What proportion of company names start with a letter? */
+/********************************************************************************** 3 *******************************************************************************
+Use the accounts table and a CASE statement to create two groups: one group of company names that start with a number and the second group of those company names 
+that start with a letter. What proportion of company names start with a letter? */
 
 SELECT CASE WHEN LEFT(name, 1) = '3' THEN 'number'
 		ELSE 'letter' END AS company_groups, count(*)
@@ -572,7 +573,7 @@ FROM
 				WHEN LEFT(UPPER(name), 1) IN ('0','1','2','3','4','5','6','7','8','9') THEN 0 ELSE 1 END AS alpha
 		FROM accounts) As t1;
 
-/*								4
+/***************************************************************** 4 *************************************************************************************************
 Consider vowels as a, e, i, o, and u. What proportion of company names start with a vowel, and what percent start with anything else? */
 
 SELECT (t2.v / (t2.non_v + t2.v) * 100) AS "vowel%", (t2.non_v / (t2.non_v + t2.v) * 100) AS "non_vowel%"
@@ -617,22 +618,25 @@ PIVOT(
 
 /* CONCAT, LEFT, RIGHT, SUBSTR */
 
-/*
-Suppose the company wants to assess the performance of all the sales representatives. Each sales representative is assigned to work in a particular region. To make it easier to understand for the HR team, display the concatenated sales_reps.id, ‘_’ (underscore), and region.name as EMP_ID_REGION for each sales representative. */
+/***************************************************************************** 5 ************************************************************************************
+Suppose the company wants to assess the performance of all the sales representatives. Each sales representative is assigned to work in a particular region. 
+To make it easier to understand for the HR team, display the concatenated sales_reps.id, ‘_’ (underscore), and region.name as EMP_ID_REGION for each sales 
+representative. */
 
 SELECT CONCAT(s.id, '_', r.name) AS EMP_ID_REGION, s.name
 FROM sales_reps AS s
 JOIN region AS r
 ON s.region_id = r.id
 
-/*
-From the accounts table, display the name of the client, the coordinate as concatenated (latitude, longitude), email id of the primary point of contact as <first letter of the primary_poc><last letter of the primary_poc>@<extracted name and domain from the website> */
+/**************************************************************************** 6 *************************************************************************************
+From the accounts table, display the name of the client, the coordinate as concatenated (latitude, longitude), email id of the primary point of contact as 
+<first letter of the primary_poc><last letter of the primary_poc>@<extracted name and domain from the website> */
 
 SELECT name, CONCAT(lat,',', long) AS coordinate,
 CONCAT(LEFT(LOWER(primary_poc),1), RIGHT(primary_poc, 1), '@', SUBSTRING(website, 5)) AS email
 FROM accounts;
 
-/*
+/************************************************************************** 7 ***************************************************************************************
 From the web_events table, display the concatenated value of account_id, '_' , channel, '_', count of web events of the particular channel */
 
 WITH web AS (
@@ -654,9 +658,10 @@ FROM sf_crime_data;
 SELECT date orig_date, (SUBSTR(date, 7, 4) || '-' || LEFT(date, 2) || '-' || SUBSTR(date, 4, 2))::DATE new_date
 FROM sf_crime_data;
 
-/* 					POSITION & STRPOS				*/
+/*****************************************************		POSITION & STRPOS	 **************************************************************************/
 
-/* Use the accounts table to create first and last name columns that hold the first and last names for the primary_poc */
+/**************************************************************************** 8 **********************************************************************************
+Use the accounts table to create first and last name columns that hold the first and last names for the primary_poc */
 
 SELECT primary_poc, SUBSTRING(primary_poc, 1, POSITION(' ' IN primary_poc)) AS "first name", SUBSTRING(primary_poc, POSITION(' ' IN primary_poc)) AS "last name"
 FROM accounts;
@@ -674,8 +679,9 @@ SELECT LEFT(name, STRPOS(name, ' ') -1 ) first_name,
        RIGHT(name, LENGTH(name) - STRPOS(name, ' ')) last_name
 FROM sales_reps;
 
-/*								1
-Each company in the accounts table wants to create an email address for each primary_poc. The email address should be the first name of the primary_poc . last name primary_poc @ company name .com 	*/
+/**************************************************************** 9 **************************************************************************************************
+Each company in the accounts table wants to create an email address for each primary_poc. The email address should be the first name of the primary_poc . last 
+name primary_poc @ company name .com 	*/
 
 SELECT 
 	SUBSTRING(primary_poc, 1, STRPOS(primary_poc, ' ') -1) first_name, 
@@ -690,8 +696,10 @@ WITH t1 AS (
 SELECT first_name, last_name, CONCAT(first_name, '.', last_name, '@', name, '.com')
 FROM t1;
 
-/*									2
-You may have noticed that in the previous solution some of the company names include spaces, which will certainly not work in an email address. See if you can create an email address that will work by removing all of the spaces in the account name, but otherwise, your solution should be just as in question 1. Some helpful documentation is here.		*/
+/******************************************************************************** 10 ********************************************************************************
+You may have noticed that in the previous solution some of the company names include spaces, which will certainly not work in an email address. See if you can 
+create an email address that will work by removing all of the spaces in the account name, but otherwise, your solution should be just as in question 1. 
+Some helpful documentation is here. */
 
 WITH 
 	t1 AS (
@@ -709,7 +717,7 @@ WITH t1 AS (
 SELECT first_name, last_name, CONCAT(first_name, '.', last_name, '@', REPLACE(name, ' ', ''), '.com')
 FROM  t1;
 
-/*									3
+/************************************************************************* 11 ***************************************************************************************
 We would also like to create an initial password, which they will change after their first log in. The first password will be the first letter of the primary_poc's first name (lowercase), then the last letter of their first name (lowercase), the first letter of their last name (lowercase), the last letter of their last name (lowercase), the number of letters in their first name, the number of letters in their last name, and then the name of the company they are working with, all capitalized with no spaces.
 */
 
@@ -732,9 +740,10 @@ SELECT first_name, last_name, CONCAT(first_name, '.', last_name, '@', name, '.co
 FROM t1;
 
 
---								COALESCE
+/***************************************************************	COALESCE	****************************************************************************/
 
-/* Use COALESCE to fill in the accounts.id column with the account.id for the NULL value for the table in 1 		*/
+/************************************************************************ 12 *************************************************************************************
+Use COALESCE to fill in the accounts.id column with the account.id for the NULL value for the table in 1 		*/
 
 SELECT COALESCE (a.id, a.id) filled_id, a.name, a.website, a.lat, a.long, a.primary_poc, a.sales_rep_id, o.account_id, o.occurred_at, o.standard_qty, o.gloss_qty, o.poster_qty, o.total, o.standard_amt_usd, o.gloss_amt_usd, o.poster_amt_usd, o.total_amt_usd 
 FROM accounts a
@@ -742,7 +751,8 @@ LEFT JOIN orders o
 ON a.id = o.account_id
 WHERE o.total IS NULL;
 
-/* Use COALESCE to fill in the orders.account_id column with the account.id for the NULL value for the table in 1 		*/
+/**************************************************************************** 13 ************************************************************************************ 
+Use COALESCE to fill in the orders.account_id column with the account.id for the NULL value for the table in 1 		*/
 
 SELECT COALESCE (a.id, a.id) AS "filled_a.id", 
 	a.name, a.website, a.lat, a.long, a.primary_poc, a.sales_rep_id,
@@ -752,7 +762,8 @@ LEFT JOIN orders o
 ON a.id = o.account_id
 WHERE o.total IS NULL;
 
-/* Use COALESCE to fill in each of the qty and usd columns with 0 for the table 1 	*/
+/******************************************************************************** 14 ******************************************************************************** 
+Use COALESCE to fill in each of the qty and usd columns with 0 for the table 1 	*/
 
 SELECT 
 	COALESCE (a.id, a.id) AS "filled_a.id", 
@@ -771,14 +782,16 @@ LEFT JOIN orders o
 ON a.id = o.account_id
 WHERE o.total IS NULL;
 
-/* Run the query in 1 with the WHERE removed and COUNT the  number of ids 	*/
+/*********************************************************************************** 15 ***************************************************************************** 
+Run the query in 1 with the WHERE removed and COUNT the  number of ids 	*/
 
 SELECT COUNT(*)
 FROM accounts a
 LEFT JOIN orders o
 ON a.id = o.account_id;
 
-/* Run the query in 5, but with the COALESCE function used in questions 2 through 4 */
+/********************************************************************************* 16 ******************************************************************************* 
+Run the query in 5, but with the COALESCE function used in questions 2 through 4 */
 
 SELECT 
 	COALESCE (a.id, a.id) AS "filled_a.id", 
@@ -798,16 +811,17 @@ ON a.id = o.account_id;
 
 
 
-/*****************************************************************************
+/*********************************************************************************************************************************************************************
 								WINDOWS FUNCTION
-******************************************************************************/
+*********************************************************************************************************************************************************************/
 
 AGGREGATE_FUNCTION (column_1) OVER
  (PARTITION BY column_2 ORDER BY column_3)
   AS new_column_name;
 
-/*
-Create a running total of standard_amt_usd (in the orders table) over order time with no date truncation. Your final table should have two columns: one with the amount being added for each new row, and a second with the running total 	*/
+/**************************************************************************************** 1 *************************************************************************
+Create a running total of standard_amt_usd (in the orders table) over order time with no date truncation. Your final table should have two columns: one with 
+the amount being added for each new row, and a second with the running total 	*/
 
 SELECT standard_amt_usd, SUM(standard_amt_usd) OVER
 (ORDER BY occurred_at) AS window_total
@@ -817,7 +831,9 @@ SELECT standard_amt_usd,
        SUM(standard_amt_usd) OVER (ORDER BY occurred_at) AS running_total
 FROM orders
 
-/* Now, modify your query from the previous quiz to include partitions. Still create a running total of standard_amt_usd (in the orders table) over order time, but this time, date truncate occurred_at by year and partition by that same year-truncated occurred_at variable. 	*/
+/************************************************************************************** 2 ****************************************************************************
+Now, modify your query from the previous quiz to include partitions. Still create a running total of standard_amt_usd (in the orders table) over order time, but 
+this time, date truncate occurred_at by year and partition by that same year-truncated occurred_at variable. 	*/
 
 SELECT standard_amt_usd, 
 	SUM(standard_amt_usd) OVER (ORDER BY occurred_at) AS running_total,
@@ -882,8 +898,9 @@ SELECT DENSE_RANK() OVER(ORDER BY date_time) AS rank,	-- DENSE_RANK
        date_time
 FROM   db;
 
-/*
-Select the id, account_id, and total variable from the orders table, then create a column called total_rank that ranks this total amount of paper ordered (from highest to lowest) for each account using a partition. Your final table should have these four columns 	*/
+/************************************************************************************* 3 *****************************************************************************
+Select the id, account_id, and total variable from the orders table, then create a column called total_rank that ranks this total amount of paper ordered (from 
+highest to lowest) for each account using a partition. Your final table should have these four columns 	*/
 
 SELECT id, account_id, total, 
 		RANK() OVER (PARTITION BY account_id ORDER BY total DESC) AS total_rank
@@ -902,7 +919,9 @@ WINDOW monthly_window AS
        (PARTITION BY month(order_date) ORDER BY order_date);
        */
 
-/* Now, create and use an alias to shorten the following query (which is different from the one in the Aggregates in Windows Functions video) that has multiple window functions. Name the alias account_year_window, which is more descriptive than main_window in the example above. */
+/**************************************************************************************** 4 *************************************************************************** 
+Now, create and use an alias to shorten the following query (which is different from the one in the Aggregates in Windows Functions video) that has multiple window 
+functions. Name the alias account_year_window, which is more descriptive than main_window in the example above. */
 
 
 SELECT id,
@@ -946,8 +965,9 @@ FROM (
        GROUP BY 1
 ) sub
 
-/*
-Modify Derek's query from the previous video in the SQL Explorer below to perform this analysis. You'll need to use occurred_at and total_amt_usd in the orders table along with LEAD to do so. In your query results, there should be four columns: occurred_at, total_amt_usd, lead, and lead_difference. 	*/
+/************************************************************************************** 5 ****************************************************************************
+Modify Derek's query from the previous video in the SQL Explorer below to perform this analysis. You'll need to use occurred_at and total_amt_usd in the orders 
+table along with LEAD to do so. In your query results, there should be four columns: occurred_at, total_amt_usd, lead, and lead_difference. 	*/
 
 
 WITH
@@ -968,8 +988,9 @@ SELECT  customer_id,
         NTILE(100) OVER(ORDER BY composite_score) AS percentile
 FROM    customer_lead_score;
 
-/*																		1
-Use the NTILE functionality to divide the accounts into 4 levels in terms of the amount of standard_qty for their orders. Your resulting table should have the account_id, the occurred_at time for each order, the total amount of standard_qty paper purchased, and one of four levels in a standard_quartile column. */
+/******************************************************************************* 6 **********************************************************************************																		1
+Use the NTILE functionality to divide the accounts into 4 levels in terms of the amount of standard_qty for their orders. Your resulting table should have the 
+account_id, the occurred_at time for each order, the total amount of standard_qty paper purchased, and one of four levels in a standard_quartile column. */
 
 
 SELECT account_id, occurred_at, standard_qty,
@@ -984,9 +1005,9 @@ SELECT
   FROM orders 
  ORDER BY account_id DESC
 
- /*																		2
- Use the NTILE functionality to divide the accounts into two levels in terms of the amount of gloss_qty for their orders. Your resulting table should have the account_id, the occurred_at time for each order, the total amount of gloss_qty paper purchased, and one of two levels in a gloss_half column.
- */
+ /************************************************************************************* 7 ***************************************************************************																		2
+ Use the NTILE functionality to divide the accounts into two levels in terms of the amount of gloss_qty for their orders. Your resulting table should have the 
+ account_id, the occurred_at time for each order, the total amount of gloss_qty paper purchased, and one of two levels in a gloss_half column. */
 
  SELECT account_id, occurred_at, gloss_qty,
  	NTILE(2) OVER (PARTITION BY account_id ORDER BY gloss_qty DESC) AS two_tile
@@ -1000,9 +1021,10 @@ SELECT
   FROM orders 
  ORDER BY account_id DESC
 
- /* 																	3
- Use the NTILE functionality to divide the orders for each account into 100 levels in terms of the amount of total_amt_usd for their orders. Your resulting table should have the account_id, the occurred_at time for each order, the total amount of total_amt_usd paper purchased, and one of 100 levels in a total_percentile column.
- */
+ /********************************************************************************************** 8 ******************************************************************
+ Use the NTILE functionality to divide the orders for each account into 100 levels in terms of the amount of total_amt_usd for their orders. Your resulting table 
+ should have the account_id, the occurred_at time for each order, the total amount of total_amt_usd paper purchased, and one of 100 levels in a total_percentile 
+ column. */
 
  SELECT account_id, occurred_at, total_amt_usd,
  	NTILE(100) OVER (PARTITION BY account_id ORDER BY total_amt_usd) AS total_percentile
