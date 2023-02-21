@@ -1,0 +1,1009 @@
+
+/****************************************************************************************************************************************
+													SUBQUERY
+****************************************************************************************************************************************/
+
+/****************************************** 1 ******************************************************************
+Provide the name of the sales_rep in each region with the largest amount of total_amt_usd sales.*/
+
+SELECT sub3.rep_name, sub3.region_name, sub3.amount
+FROM(
+    SELECT region_name, MAX(amount) AS "amount"
+    FROM(
+        SELECT s.name AS "rep_name", r.name AS "region_name", SUM(o.total_amt_usd) AS "amount"
+		FROM sales_reps AS s
+		JOIN region AS r
+		ON r.id = s.region_id
+		JOIN accounts AS a
+		ON s.id = a.sales_rep_id
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1, 2) AS "sub1"
+      GROUP BY 1) AS "sub2"
+      
+JOIN(
+    	SELECT s.name AS "rep_name", r.name AS "region_name", SUM(o.total_amt_usd) AS "amount"
+		FROM sales_reps AS s
+		JOIN region AS r
+		ON r.id = s.region_id
+		JOIN accounts AS a
+		ON s.id = a.sales_rep_id
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1, 2) AS "sub3"
+ON sub3.region_name = sub2.region_name AND
+	sub3.amount = sub2.amount
+ORDER BY amount DESC
+
+
+
+/************************************************* 2 ******************************************************************
+For the region with the largest (sum) of sales total_amt_usd, how many total (count) orders were placed?*/
+
+SELECT sub3.region_name, sub3.amount, sub3.total_orders
+FROM(
+    SELECT region_name, MAX(amount) AS "amount"
+    FROM(
+        SELECT r.name AS "region_name", SUM(o.total_amt_usd) AS "amount",
+      		Count(o.total) AS "total_orders"
+		FROM sales_reps AS s
+		JOIN region AS r
+		ON r.id = s.region_id
+		JOIN accounts AS a
+		ON s.id = a.sales_rep_id
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1) AS "sub1"
+      GROUP BY 1) AS "sub2"
+      
+JOIN(
+    	SELECT r.name AS "region_name", SUM(o.total_amt_usd) AS "amount",
+  			Count(o.total) AS "total_orders"
+		FROM sales_reps AS s
+		JOIN region AS r
+		ON r.id = s.region_id
+		JOIN accounts AS a
+		ON s.id = a.sales_rep_id
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1) AS "sub3"
+ON sub3.region_name = sub2.region_name AND
+	sub3.amount = sub2.amount
+ORDER BY amount DESC
+LIMIT 1
+
+
+SELECT r.name, COUNT(o.total) total_orders
+FROM sales_reps s
+JOIN accounts a
+ON a.sales_rep_id = s.id
+JOIN orders o
+ON o.account_id = a.id
+JOIN region r
+ON r.id = s.region_id
+GROUP BY r.name
+HAVING SUM(o.total_amt_usd) = (
+      SELECT MAX(total_amt)
+      FROM (SELECT r.name region_name, SUM(o.total_amt_usd) total_amt
+              FROM sales_reps s
+              JOIN accounts a
+              ON a.sales_rep_id = s.id
+              JOIN orders o
+              ON o.account_id = a.id
+              JOIN region r
+              ON r.id = s.region_id
+              GROUP BY r.name) sub);
+/******************************************************* 3 *******************************************************************
+
+How many accounts had more total purchases than the account name which has bought the most standard_qty paper throughout their lifetime as a customer? */
+
+SELECT COUNT(*) accounts_count
+FROM(
+	SELECT a.name, SUM(o.total)
+	FROM orders AS "o"
+    JOIN accounts AS "a"
+    ON a.id = o.account_id
+	GROUP BY 1
+	HAVING SUM(o.total) >
+		(SELECT MAX(sub.standard)
+     	FROM
+        	(SELECT a.name, SUM(o.standard_qty) AS "standard"
+			FROM accounts AS "a"
+    		JOIN orders AS "o"
+   			 ON o.account_id = a.id
+			GROUP BY 1
+			) sub
+    )
+)sub2
+
+SELECT COUNT(*) accounts_count
+FROM(
+	SELECT a.name, SUM(o.total)
+	FROM orders AS "o"
+    JOIN accounts AS "a"
+    ON a.id = o.account_id
+	GROUP BY 1
+	HAVING SUM(o.total) >
+		(SELECT sub.purchases
+     	FROM
+        	(SELECT a.name AS "ac_name", SUM(o.standard_qty) AS "standard", SUM(o.total) AS "purchases"
+			FROM accounts AS "a"
+    		JOIN orders AS "o"
+   			 ON o.account_id = a.id
+			GROUP BY 1
+			ORDER BY 2 DESC
+			LIMIT 1
+			) sub
+    )
+)sub2
+
+
+SELECT COUNT(*) ------------------- provided solution
+FROM (SELECT a.name, SUM(o.total)
+       FROM orders o
+       JOIN accounts a
+       ON a.id = o.account_id
+       GROUP BY 1
+       HAVING SUM(o.total) > (SELECT total 
+                   FROM (SELECT a.name act_name, SUM(o.standard_qty) tot_std, SUM(o.total) total
+                         FROM accounts a
+                         JOIN orders o
+                         ON o.account_id = a.id
+                         GROUP BY 1
+                         ORDER BY 2 DESC
+                         LIMIT 1) inner_tab)
+             ) counter_tab;      
+
+/*************************** 4 ********************
+For the customer that spent the most (in total over their lifetime as a customer) total_amt_usd, how many web_events did they have for each channel?
+****************************************************/
+
+SELECT table1.name, table2.channel, table2.count
+FROM
+    (SELECT a.name As name, SUM(o.total_amt_usd) AS amount
+    FROM accounts AS a
+    JOIN orders AS o 
+    ON a.id = o.account_id
+    GROUP BY 1
+    ORDER BY 2 DESC
+    LIMIT 1) table1
+JOIN (
+    SELECT a.name AS name, w.channel, COUNT(w.channel) AS count
+    FROM accounts As a
+    JOIN web_events AS w
+    ON a.id = w.account_id
+    GROUP BY 1, 2
+    ORDER BY 3 DESC) table2
+ON table1.name = table2.name
+
+
+SELECT a.name, w.channel, COUNT(*)
+FROM accounts a
+JOIN web_events w
+ON a.id = w.account_id AND a.id =  (SELECT id
+                     FROM (SELECT a.id, a.name, SUM(o.total_amt_usd) tot_spent
+                           FROM orders o
+                           JOIN accounts a
+                           ON a.id = o.account_id
+                           GROUP BY a.id, a.name
+                           ORDER BY 3 DESC
+                           LIMIT 1) inner_table)
+GROUP BY 1, 2
+ORDER BY 3 DESC;
+
+/*********************** 5 *************************
+What is the lifetime average amount spent in terms of total_amt_usd for the top 10 total spending accounts?
+****************************************************/
+
+SELECT ROUND(AVG(table1.amount),2) AS average_amount
+FROM(SELECT a.name, SUM(total_amt_usd) AS amount
+		FROM accounts AS a
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1
+		ORDER BY 2 DESC
+		LIMIT 10) table1
+
+
+
+SELECT AVG(tot_spent)
+FROM (SELECT a.id, a.name, SUM(o.total_amt_usd) tot_spent
+      FROM orders o
+      JOIN accounts a
+      ON a.id = o.account_id
+      GROUP BY a.id, a.name
+      ORDER BY 3 DESC
+       LIMIT 10) temp;
+
+/************************** 6 **********************
+What is the lifetime average amount spent in terms of total_amt_usd, including only the companies that spent more per order, on average, than the average of all orders?
+****************************************************/
+
+SELECT ROUND(AVG(tab1.total_amount), 2)
+FROM (
+	SELECT a.name, AVG(o.total_amt_usd) AS total_amount
+	FROM orders AS o 
+	JOIN accounts AS a
+	ON o.account_id = a.id
+	GROUP BY 1
+	HAVING AVG(o.total_amt_usd) > (
+		SELECT AVG(total_amt_usd)
+		FROM orders 
+		)
+) tab1
+
+
+SELECT AVG(avg_amt)
+FROM (SELECT o.account_id, AVG(o.total_amt_usd) avg_amt
+    FROM orders o
+    GROUP BY 1
+    HAVING AVG(o.total_amt_usd) > (SELECT AVG(o.total_amt_usd) avg_all
+                                   FROM orders o)) temp_table;
+
+
+
+/*SELECT ROUND(AVG(table1.amount),2) AS average_amount
+FROM(SELECT a.name, SUM(total_amt_usd) AS amount
+		FROM accounts AS a
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1
+		ORDER BY 2 DESC
+		LIMIT 10) table1
+
+
+SELECT tab2.name, tab2.com_order as avg_order
+FROM (
+	SELECT tab1.name, AVG(tab1.total_order) com_order
+	FROM (
+		SELECT a.name, SUM(o.total) AS total_order
+		FROM accounts As a
+		JOIN orders As o
+		ON a.id = o.account_id
+		GROUP BY 1
+		ORDER BY 2 DESC) tab1		
+	GROUP BY 1
+	) tab2 
+WHERE tab2.com_order > (
+	SELECT tab3.name, AVG(tab3.total_order) order 
+	FROM (
+			SELECT a.name AS name, SUM(o.total) AS total_order
+			FROM accounts As a
+			JOIN orders As o
+			ON a.id = o.account_id
+			GROUP BY 1
+			ORDER BY 2 DESC) tab3
+	GROUP BY 1
+	)		
+ORDER BY 2 DESC */
+
+-------- SUBQUERIES WITH CTE common table expression ------
+
+/************************* 1 **************************
+Provide the name of the sales_rep in each region with the largest amount of total_amt_usd sales.
+********************************************************/
+
+WITH 
+	sales_region AS (
+		SELECT s.name AS sales_rep, r.name As region, SUM(					o.total_amt_usd) AS total_amount
+		FROM sales_reps AS s
+		JOIN accounts As a
+		ON s.id = a.sales_rep_id
+		JOIN orders As o
+		ON a.id = o.account_id
+		JOIN region AS r
+		ON r.id = s.region_id
+		GROUP BY 1, 2),
+
+	max_sales AS (	
+		SELECT region AS regions, MAX(total_amount) AS amount
+		FROM sales_region
+		GROUP BY 1
+		ORDER BY 2 DESC)
+
+SELECT sales_rep, region, amount
+FROM sales_region AS sr
+JOIN max_sales AS ms
+ON sr.region = ms.regions AND sr.total_amount = ms.amount
+ORDER BY 3 DESC
+
+
+WITH t1 AS (
+  SELECT s.name rep_name, r.name region_name, SUM(o.total_amt_usd) total_amt
+   FROM sales_reps s
+   JOIN accounts a
+   ON a.sales_rep_id = s.id
+   JOIN orders o
+   ON o.account_id = a.id
+   JOIN region r
+   ON r.id = s.region_id
+   GROUP BY 1,2
+   ORDER BY 3 DESC), 
+t2 AS (
+   SELECT region_name, MAX(total_amt) total_amt
+   FROM t1
+   GROUP BY 1)
+SELECT t1.rep_name, t1.region_name, t1.total_amt
+FROM t1
+JOIN t2
+ON t1.region_name = t2.region_name AND t1.total_amt = t2.total_amt;
+
+/********************** 2 *****************************
+For the region with the largest sales total_amt_usd, how many total orders were placed?
+*******************************************************
+WITH
+	region_amount AS (
+		SELECT r.name AS region, SUM(o.total_amt_usd) AS total_amount
+		FROM sales_reps AS s
+		JOIN accounts As a
+		ON s.id = a.sales_rep_id
+		JOIN orders AS o
+		ON a.id = o.account_id
+		JOIN region AS r
+		ON r.id = s.region_id
+		GROUP BY 1
+		ORDER BY 2 DESC
+		LIMIT 1),
+	region_order AS (
+		SELECT r.name AS region, COUNT(o.total) AS total_order
+		FROM sales_reps AS s
+		JOIN accounts As a
+		ON s.id = a.sales_rep_id
+		JOIN orders AS o
+		ON a.id = o.account_id
+		JOIN region AS r
+		ON r.id = s.region_id
+		GROUP BY 1)
+
+SELECT ra.region, ro.total_order, ra.total_amount AS amount
+FROM region_amount AS ra
+JOIN region_order AS ro
+ON ra.region = ro.region
+
+
+WITH t1 AS (
+   SELECT r.name region_name, SUM(o.total_amt_usd) total_amt
+   FROM sales_reps s
+   JOIN accounts a
+   ON a.sales_rep_id = s.id
+   JOIN orders o
+   ON o.account_id = a.id
+   JOIN region r
+   ON r.id = s.region_id
+   GROUP BY r.name), 
+t2 AS (
+   SELECT MAX(total_amt)
+   FROM t1)
+SELECT r.name, COUNT(o.total) total_orders
+FROM sales_reps s
+JOIN accounts a
+ON a.sales_rep_id = s.id
+JOIN orders o
+ON o.account_id = a.id
+JOIN region r
+ON r.id = s.region_id
+GROUP BY r.name
+HAVING SUM(o.total_amt_usd) = (SELECT * FROM t2);
+
+/************************* 3 *************************
+How many accounts had more total purchases than the account name which has bought the most standard_qty paper throughout their lifetime as a customer? 
+********************************************************/
+
+WITH 
+	t1 AS (
+		SELECT a.name, SUM(o.standard_qty) AS total_standard, SUM(o.total) AS total_order
+		FROM accounts AS a
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1
+		ORDER BY 3 DESC
+		)
+	
+SELECT t1.name, t1.total_order
+FROM t1 
+WHERE t1.total_order > MAX(t1.total_standard)
+
+
+
+WITH 
+	t1 AS (
+		SELECT a.name, SUM(o.standard_qty) AS total_standard, SUM(o.total) AS total_order
+		FROM accounts AS a
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1
+		ORDER BY 2 DESC
+		LIMIT 1),
+	t2 AS (
+		SELECT a.name, SUM(o.total) AS total
+		FROM accounts AS a
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1
+		HAVING SUM(o.total) > (SELECT t1.total_order FROM t1)
+		ORDER BY 2 DESC)
+SELECT COUNT(*) FROM t2
+
+WITH t1 AS (
+  SELECT a.name account_name, SUM(o.standard_qty) total_std, SUM(o.total) total
+  FROM accounts a
+  JOIN orders o
+  ON o.account_id = a.id
+  GROUP BY 1
+  ORDER BY 2 DESC
+  LIMIT 1), 
+t2 AS (
+  SELECT a.name, SUM(o.total)
+  FROM orders o
+  JOIN accounts a
+  ON a.id = o.account_id
+  GROUP BY 1
+  HAVING SUM(o.total) > (SELECT total FROM t1))
+SELECT COUNT(*)
+FROM t2
+
+/***************************** 4 ***************************
+For the customer that spent the most (in total over their lifetime as a customer) total_amt_usd, how many web_events did they have for each channel? ***********************/
+
+WITH
+	t1 AS (
+		SELECT a.name AS a_name, SUM(o.total_amt_usd) AS total
+		FROM accounts AS a
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1
+		ORDER BY 2 DESC
+		LIMIT 1),
+	t2 AS (
+		SELECT a.name AS name, w.channel AS channel
+		FROM accounts AS a
+		JOIN web_events AS W
+		ON a.id = w.account_id)
+SELECT t2.name, t2.channel, COUNT(t2.channel)
+FROM t2
+JOIN t1 
+ON t1.a_name = t2.name
+GROUP BY 1, 2
+ORDER BY 3 DESC
+
+WITH t1 AS (
+   SELECT a.id, a.name, SUM(o.total_amt_usd) tot_spent
+   FROM orders o
+   JOIN accounts a
+   ON a.id = o.account_id
+   GROUP BY a.id, a.name
+   ORDER BY 3 DESC
+   LIMIT 1)
+SELECT a.name, w.channel, COUNT(*)
+FROM accounts a
+JOIN web_events w
+ON a.id = w.account_id AND a.id =  (SELECT id FROM t1)
+GROUP BY 1, 2
+ORDER BY 3 DESC;
+
+/************************ 5 ***************************
+What is the lifetime average amount spent in terms of total_amt_usd for the top 10 total spending accounts? */
+
+WITH
+	t1 AS (
+		SELECT a.name, SUM(o.total_amt_usd) as total_amt
+		FROM accounts AS a
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1
+		ORDER BY 2 DESC
+		LIMIT 10)
+SELECT AVG(t1.total_amt) AS average_total
+FROM t1
+
+WITH t1 AS (
+   SELECT a.id, a.name, SUM(o.total_amt_usd) tot_spent
+   FROM orders o
+   JOIN accounts a
+   ON a.id = o.account_id
+   GROUP BY a.id, a.name
+   ORDER BY 3 DESC
+   LIMIT 10)
+SELECT AVG(tot_spent)
+FROM t1;
+
+/************************* 6 *************************
+What is the lifetime average amount spent in terms of total_amt_usd, including only the companies that spent more per order, on average, than the average of all orders. */
+
+WITH
+	t1 AS (		
+		SELECT AVG(o.total_amt_usd) AS average
+		FROM orders As o
+		JOIN accounts As a
+		ON a.id = o.account_id),
+	t2 AS (
+		SELECT a.name, AVG(o.total_amt_usd) AS avg_amt
+		FROM accounts AS a
+		JOIN orders AS o
+		ON a.id = o.account_id
+		GROUP BY 1
+		HAVING AVG(o.total_amt_usd) > (SELECT * FROM t1)
+		)
+SELECT AVG(avg_amt) FROM t2
+
+
+/*********************************************************
+						DATA CLEANING			
+*********************************************************/
+
+/*								1
+In the accounts table, there is a column holding the website for each company. The last three digits specify what type of web address they are using. A list of extensions (and pricing) is provided here. Pull these extensions and provide how many of each website type exist in the accounts table. */
+
+SELECT RIGHT(website, 3) AS web_type, COUNT(600) AS company_count
+FROM accounts
+GROUP BY 1
+ORDER BY 2 DESC;
+
+SELECT RIGHT(website, 3) AS domain, COUNT(*) num_companies
+FROM accounts
+GROUP BY 1
+ORDER BY 2 DESC;
+
+/*								2
+There is much debate about how much the name (or even the first letter of a company name) matters. Use the accounts table to pull the first letter of each company name to see the distribution of company names that begin with each letter (or number). */
+
+SELECT LEFT(name, 1) AS first_letter, COUNT(1000) AS first_letter_count FROM accounts
+GROUP BY 1
+ORDER BY 1;
+
+SELECT LEFT(UPPER(name), 1) AS first_letter, COUNT(*) num_companies
+FROM accounts
+GROUP BY 1
+ORDER BY 2 DESC;
+
+/*								3
+Use the accounts table and a CASE statement to create two groups: one group of company names that start with a number and the second group of those company names that start with a letter. What proportion of company names start with a letter? */
+
+SELECT CASE WHEN LEFT(name, 1) = '3' THEN 'number'
+		ELSE 'letter' END AS company_groups, count(*)
+FROM accounts
+GROUP BY 1
+
+SELECT SUM(t1.number) AS number, SUM(t1.alpha) AS alpha
+FROM
+		(SELECT name, CASE 
+				WHEN LEFT(UPPER(name), 1) IN ('0','1','2','3','4','5','6','7','8','9') THEN 1 ELSE 0 END AS number,
+			CASE
+				WHEN LEFT(UPPER(name), 1) IN ('0','1','2','3','4','5','6','7','8','9') THEN 0 ELSE 1 END AS alpha
+		FROM accounts) As t1;
+
+/*								4
+Consider vowels as a, e, i, o, and u. What proportion of company names start with a vowel, and what percent start with anything else? */
+
+SELECT (t2.v / (t2.non_v + t2.v) * 100) AS "vowel%", (t2.non_v / (t2.non_v + t2.v) * 100) AS "non_vowel%"
+FROM (
+	SELECT SUM(t1.vowel) AS v, SUM(t1.non_vowel) AS non_v 
+	FROM
+		(SELECT CASE 
+				WHEN LEFT(LOWER(name), 1) IN ('a','e','i','o','u') THEN 1 ELSE 0 END AS "vowel",
+				CASE 
+				WHEN LEFT(LOWER(name), 1) IN ('a','e','i','o','u') THEN 0 ELSE 1 END AS "non_vowel"
+		FROM accounts) AS t1
+) AS t2
+
+SELECT SUM(vowels) vowels, SUM(other) other
+FROM (SELECT name, CASE WHEN LEFT(UPPER(name), 1) IN ('A','E','I','O','U') 
+                           THEN 1 ELSE 0 END AS vowels, 
+             CASE WHEN LEFT(UPPER(name), 1) IN ('A','E','I','O','U') 
+                          THEN 0 ELSE 1 END AS other
+            FROM accounts) t1;
+
+ /* separating data combined in a column to different columns
+
+ WITH table AS(
+SELECT  student_information,
+        value,
+        ROW _NUMBER() OVER(PARTITION BY student_information ORDER BY (SELECT NULL)) AS row_number
+FROM    student_db
+        CROSS APPLY STRING_SPLIT(student_information, ',') AS back_values
+)
+SELECT  student_information,
+        [1] AS STUDENT_ID,
+        [2] AS GENDER,
+        [3] AS CITY,
+        [4] AS GPA,
+        [5] AS SALARY
+FROM    table
+PIVOT(
+        MAX(VALUE)
+        FOR row_number IN([1],[2],[3],[4],[5])
+) AS PVT)
+*/
+
+/* CONCAT, LEFT, RIGHT, SUBSTR */
+
+/*
+Suppose the company wants to assess the performance of all the sales representatives. Each sales representative is assigned to work in a particular region. To make it easier to understand for the HR team, display the concatenated sales_reps.id, ‘_’ (underscore), and region.name as EMP_ID_REGION for each sales representative. */
+
+SELECT CONCAT(s.id, '_', r.name) AS EMP_ID_REGION, s.name
+FROM sales_reps AS s
+JOIN region AS r
+ON s.region_id = r.id
+
+/*
+From the accounts table, display the name of the client, the coordinate as concatenated (latitude, longitude), email id of the primary point of contact as <first letter of the primary_poc><last letter of the primary_poc>@<extracted name and domain from the website> */
+
+SELECT name, CONCAT(lat,',', long) AS coordinate,
+CONCAT(LEFT(LOWER(primary_poc),1), RIGHT(primary_poc, 1), '@', SUBSTRING(website, 5)) AS email
+FROM accounts;
+
+/*
+From the web_events table, display the concatenated value of account_id, '_' , channel, '_', count of web events of the particular channel */
+
+WITH web AS (
+SELECT account_id, channel, COUNT(channel) AS channel_number
+FROM web_events
+GROUP BY 1, 2
+ORDER BY 3 DESC
+
+)
+
+SELECT CONCAT(account_id, '_', channel, '_', channel_number) AS channel_details
+FROM web;
+
+/* write a query to change the date into the correct SQL date format */
+
+SELECT date, CAST(CONCAT(SUBSTRING(date, 7, 4),'/', LEFT(date, 2),'/',SUBSTRING(date, 4,2)) AS date) AS formatted_date
+FROM sf_crime_data;
+
+SELECT date orig_date, (SUBSTR(date, 7, 4) || '-' || LEFT(date, 2) || '-' || SUBSTR(date, 4, 2))::DATE new_date
+FROM sf_crime_data;
+
+/* 					POSITION & STRPOS				*/
+
+/* Use the accounts table to create first and last name columns that hold the first and last names for the primary_poc */
+
+SELECT primary_poc, SUBSTRING(primary_poc, 1, POSITION(' ' IN primary_poc)) AS "first name", SUBSTRING(primary_poc, POSITION(' ' IN primary_poc)) AS "last name"
+FROM accounts;
+
+SELECT LEFT(primary_poc, STRPOS(primary_poc, ' ') -1 ) first_name, 
+RIGHT(primary_poc, LENGTH(primary_poc) - STRPOS(primary_poc, ' ')) last_name
+FROM accounts;
+
+/* Now see if you can do the same thing for every rep name in the sales_reps table. Again provide first and last name columns. */
+
+SELECT name, SUBSTRING(name, 1, POSITION(' ' IN name)) AS "first name", SUBSTRING(name, POSITION(' ' IN name)) AS "last name"
+FROM sales_reps;
+
+SELECT LEFT(name, STRPOS(name, ' ') -1 ) first_name, 
+       RIGHT(name, LENGTH(name) - STRPOS(name, ' ')) last_name
+FROM sales_reps;
+
+/*								1
+Each company in the accounts table wants to create an email address for each primary_poc. The email address should be the first name of the primary_poc . last name primary_poc @ company name .com 	*/
+
+SELECT 
+	SUBSTRING(primary_poc, 1, STRPOS(primary_poc, ' ') -1) first_name, 
+	SUBSTRING(primary_poc, STRPOS(primary_poc, ' ')) last_name,
+	LOWER(CONCAT(LEFT(primary_poc, POSITION(' ' IN Primary_poc) -1), '.', RIGHT(primary_poc, LENGTH(primary_poc) - POSITION(' ' IN Primary_poc)),'@', SUBSTRING(website, 5))) AS email
+FROM accounts;
+
+WITH t1 AS (
+ SELECT LEFT(primary_poc, STRPOS(primary_poc, ' ') -1 ) first_name,  
+ RIGHT(primary_poc, LENGTH(primary_poc) - STRPOS(primary_poc, ' ')) last_name, name
+ FROM accounts)
+SELECT first_name, last_name, CONCAT(first_name, '.', last_name, '@', name, '.com')
+FROM t1;
+
+/*									2
+You may have noticed that in the previous solution some of the company names include spaces, which will certainly not work in an email address. See if you can create an email address that will work by removing all of the spaces in the account name, but otherwise, your solution should be just as in question 1. Some helpful documentation is here.		*/
+
+WITH 
+	t1 AS (
+SELECT primary_poc, website, LOWER(CONCAT(LEFT(primary_poc, POSITION(' ' IN Primary_poc) -1), '.', RIGHT(primary_poc, LENGTH(primary_poc) - POSITION(' ' IN Primary_poc)),'@', SUBSTRING(website, 5))) AS email
+FROM accounts
+)
+
+SELECT t1.email 
+FROM t1
+WHERE t1.email ILIKE '% %';
+
+WITH t1 AS (
+ SELECT LEFT(primary_poc,     STRPOS(primary_poc, ' ') -1 ) first_name,  RIGHT(primary_poc, LENGTH(primary_poc) - STRPOS(primary_poc, ' ')) last_name, name
+ FROM accounts)
+SELECT first_name, last_name, CONCAT(first_name, '.', last_name, '@', REPLACE(name, ' ', ''), '.com')
+FROM  t1;
+
+/*									3
+We would also like to create an initial password, which they will change after their first log in. The first password will be the first letter of the primary_poc's first name (lowercase), then the last letter of their first name (lowercase), the first letter of their last name (lowercase), the last letter of their last name (lowercase), the number of letters in their first name, the number of letters in their last name, and then the name of the company they are working with, all capitalized with no spaces.
+*/
+
+SELECT primary_poc, 
+	CONCAT
+		(LOWER(
+		CONCAT(LEFT(primary_poc, 1), 
+		SUBSTRING(primary_poc, STRPOS(primary_poc, ' ') -1, 1), 
+		SUBSTRING(primary_poc, STRPOS(primary_poc, ' ') +1, 1), 
+		RIGHT(primary_poc, 1), LENGTH(SUBSTRING(primary_poc, 1, 
+		STRPOS(primary_poc, ' ') -1)), LENGTH(SUBSTRING(primary_poc, 
+		STRPOS(primary_poc, ' ') +1)))), 
+	REPLACE(UPPER(name), ' ',''))
+FROM accounts;
+
+WITH t1 AS (
+ SELECT LEFT(primary_poc,     STRPOS(primary_poc, ' ') -1 ) first_name,  RIGHT(primary_poc, LENGTH(primary_poc) - STRPOS(primary_poc, ' ')) last_name, name
+ FROM accounts)
+SELECT first_name, last_name, CONCAT(first_name, '.', last_name, '@', name, '.com'), LEFT(LOWER(first_name), 1) || RIGHT(LOWER(first_name), 1) || LEFT(LOWER(last_name), 1) || RIGHT(LOWER(last_name), 1) || LENGTH(first_name) || LENGTH(last_name) || REPLACE(UPPER(name), ' ', '')
+FROM t1;
+
+
+--								COALESCE
+
+/* Use COALESCE to fill in the accounts.id column with the account.id for the NULL value for the table in 1 		*/
+
+SELECT COALESCE (a.id, a.id) filled_id, a.name, a.website, a.lat, a.long, a.primary_poc, a.sales_rep_id, o.account_id, o.occurred_at, o.standard_qty, o.gloss_qty, o.poster_qty, o.total, o.standard_amt_usd, o.gloss_amt_usd, o.poster_amt_usd, o.total_amt_usd 
+FROM accounts a
+LEFT JOIN orders o
+ON a.id = o.account_id
+WHERE o.total IS NULL;
+
+/* Use COALESCE to fill in the orders.account_id column with the account.id for the NULL value for the table in 1 		*/
+
+SELECT COALESCE (a.id, a.id) AS "filled_a.id", 
+	a.name, a.website, a.lat, a.long, a.primary_poc, a.sales_rep_id,
+	COALESCE(o.account_id, a.id) AS "filled_o.account_id", o.standard_qty, o.gloss_qty, o.poster_qty, o.total, o.standard_amt_usd, o.gloss_amt_usd, o.poster_amt_usd, o.total_amt_usd 
+FROM accounts a
+LEFT JOIN orders o
+ON a.id = o.account_id
+WHERE o.total IS NULL;
+
+/* Use COALESCE to fill in each of the qty and usd columns with 0 for the table 1 	*/
+
+SELECT 
+	COALESCE (a.id, a.id) AS "filled_a.id", 
+	a.name, a.website, a.lat, a.long, a.primary_poc, a.sales_rep_id,
+	COALESCE(o.account_id, a.id) AS "filled_o.account_id", 
+	COALESCE(o.standard_qty, 0) "standard_qty", 
+	COALESCE(o.gloss_qty, 0) "gloss_qty", 
+	COALESCE(o.poster_qty, 0) "poster", 
+	COALESCE(o.total, 0) "total", 
+	COALESCE(o.standard_amt_usd, 0) "standard_amt_usd", 
+	COALESCE(o.gloss_amt_usd, 0) "gloss_amt_usd", 
+	COALESCE(o.poster_amt_usd, 0) "poster", 
+	COALESCE(o.total_amt_usd, 0) "total_amt_usd"
+FROM accounts a
+LEFT JOIN orders o
+ON a.id = o.account_id
+WHERE o.total IS NULL;
+
+/* Run the query in 1 with the WHERE removed and COUNT the  number of ids 	*/
+
+SELECT COUNT(*)
+FROM accounts a
+LEFT JOIN orders o
+ON a.id = o.account_id;
+
+/* Run the query in 5, but with the COALESCE function used in questions 2 through 4 */
+
+SELECT 
+	COALESCE (a.id, a.id) AS "filled_a.id", 
+	a.name, a.website, a.lat, a.long, a.primary_poc, a.sales_rep_id,
+	COALESCE(o.account_id, a.id) AS "filled_o.account_id", 
+	COALESCE(o.standard_qty, 0) "standard_qty", 
+	COALESCE(o.gloss_qty, 0) "gloss_qty", 
+	COALESCE(o.poster_qty, 0) "poster", 
+	COALESCE(o.total, 0) "total", 
+	COALESCE(o.standard_amt_usd, 0) "standard_amt_usd", 
+	COALESCE(o.gloss_amt_usd, 0) "gloss_amt_usd", 
+	COALESCE(o.poster_amt_usd, 0) "poster", 
+	COALESCE(o.total_amt_usd, 0) "total_amt_usd"
+FROM accounts a
+LEFT JOIN orders o
+ON a.id = o.account_id;
+
+
+
+/*****************************************************************************
+								WINDOWS FUNCTION
+******************************************************************************/
+
+AGGREGATE_FUNCTION (column_1) OVER
+ (PARTITION BY column_2 ORDER BY column_3)
+  AS new_column_name;
+
+/*
+Create a running total of standard_amt_usd (in the orders table) over order time with no date truncation. Your final table should have two columns: one with the amount being added for each new row, and a second with the running total 	*/
+
+SELECT standard_amt_usd, SUM(standard_amt_usd) OVER
+(ORDER BY occurred_at) AS window_total
+FROM orders;
+
+SELECT standard_amt_usd,
+       SUM(standard_amt_usd) OVER (ORDER BY occurred_at) AS running_total
+FROM orders
+
+/* Now, modify your query from the previous quiz to include partitions. Still create a running total of standard_amt_usd (in the orders table) over order time, but this time, date truncate occurred_at by year and partition by that same year-truncated occurred_at variable. 	*/
+
+SELECT standard_amt_usd, 
+	SUM(standard_amt_usd) OVER (ORDER BY occurred_at) AS running_total,
+	DATE_TRUNC('year', occurred_at) AS year,
+	SUM(standard_amt_usd) OVER (PARTITION BY DATE_TRUNC('year', occurred_at) ORDER BY occurred_at) AS year_running_total
+FROM orders;
+
+SELECT standard_amt_usd,
+       DATE_TRUNC('year', occurred_at) as year,
+       SUM(standard_amt_usd) OVER (PARTITION BY DATE_TRUNC('year', occurred_at) ORDER BY occurred_at) AS running_total
+FROM orders
+
+/*
+
+SELECT order_id,
+       order_total,
+       order_price,
+       SUM(order_total) OVER
+           (PARTITION BY month(order_date) ORDER BY order_date) AS running_monthly_sales,
+       COUNT(order_id) OVER
+           (PARTITION BY month(order_date) ORDER BY order_date) AS running_monthly orders,
+       AVG(order_price) OVER
+           (PARTITION BY month(order_date) ORDER BY order_date) AS average_monthly_price
+FROM  amazon_sales_db
+WHERE order_date < '2017-01-01';
+*/
+
+SELECT id,
+       account_id,
+       standard_qty,
+       DATE_TRUNC('month', occurred_at) AS month,
+       DENSE_RANK() OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('month', occurred_at)) AS dense_rank,
+       SUM(standard_qty) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('month', occurred_at)) AS sum_standard_qty,
+       COUNT(standard_qty) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('month', occurred_at)) AS count_standard_qty,
+       AVG(standard_qty) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('month', occurred_at)) AS avg_standard_qty,
+       MIN(standard_qty) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('month', occurred_at)) AS min_standard_qty,
+       MAX(standard_qty) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('month', occurred_at)) AS max_standard_qty
+FROM orders;
+
+
+SELECT id,
+       account_id,
+       standard_qty,
+       DATE_TRUNC('month', occurred_at) AS month,
+       DENSE_RANK() OVER (PARTITION BY account_id ) AS dense_rank,
+       SUM(standard_qty) OVER (PARTITION BY account_id) AS sum_std_qty,
+       COUNT(standard_qty) OVER (PARTITION BY account_id) AS count_std_qty,
+       AVG(standard_qty) OVER (PARTITION BY account_id) AS avg_std_qty,
+       MIN(standard_qty) OVER (PARTITION BY account_id) AS min_std_qty,
+       MAX(standard_qty) OVER (PARTITION BY account_id ) AS max_std_qty
+FROM orders
+
+SELECT ROW_NUMBER() OVER(ORDER BY date_time) AS rank,	-- ROW_NUMBER
+       date_time
+FROM   db;
+
+SELECT RANK() OVER(ORDER BY date_time) AS rank, 		-- RANK
+       date_time
+FROM   db;
+
+SELECT DENSE_RANK() OVER(ORDER BY date_time) AS rank,	-- DENSE_RANK
+       date_time
+FROM   db;
+
+/*
+Select the id, account_id, and total variable from the orders table, then create a column called total_rank that ranks this total amount of paper ordered (from highest to lowest) for each account using a partition. Your final table should have these four columns 	*/
+
+SELECT id, account_id, total, 
+		RANK() OVER (PARTITION BY account_id ORDER BY total DESC) AS total_rank
+FROM orders
+
+/*
+SELECT order_id,
+       order_total,
+       order_price,
+       SUM(order_total) OVER monthly_window AS running_monthly_sales,
+       COUNT(order_id) OVER monthly_window AS running_monthly orders,
+       AVG(order_price) OVER monthly_window AS average_monthly_price
+FROM   amazon_sales_db
+WHERE  order_date < '2017-01-01'
+WINDOW monthly_window AS
+       (PARTITION BY month(order_date) ORDER BY order_date);
+       */
+
+/* Now, create and use an alias to shorten the following query (which is different from the one in the Aggregates in Windows Functions video) that has multiple window functions. Name the alias account_year_window, which is more descriptive than main_window in the example above. */
+
+
+SELECT id,
+       account_id,
+       DATE_TRUNC('year',occurred_at) AS year,
+       DENSE_RANK() OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('year',occurred_at)) AS dense_rank,
+       total_amt_usd,
+       SUM(total_amt_usd) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('year',occurred_at)) AS sum_total_amt_usd,
+       COUNT(total_amt_usd) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('year',occurred_at)) AS count_total_amt_usd,
+       AVG(total_amt_usd) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('year',occurred_at)) AS avg_total_amt_usd,
+       MIN(total_amt_usd) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('year',occurred_at)) AS min_total_amt_usd,
+       MAX(total_amt_usd) OVER (PARTITION BY account_id ORDER BY DATE_TRUNC('year',occurred_at)) AS max_total_amt_usd
+FROM orders
+
+SELECT id,
+       account_id,
+       DATE_TRUNC('year',occurred_at) AS year,
+       DENSE_RANK() OVER account_year_window AS dense_rank,
+       total_amt_usd,
+       SUM(total_amt_usd) OVER account_year_window AS sum_total_amt_usd,
+       COUNT(total_amt_usd) OVER account_year_window AS count_total_amt_usd,
+       AVG(total_amt_usd) OVER account_year_window AS avg_total_amt_usd,
+       MIN(total_amt_usd) OVER account_year_window AS min_total_amt_usd,
+       MAX(total_amt_usd) OVER account_year_window AS max_total_amt_usd
+FROM orders
+WINDOW account_year_window AS
+	(PARTITION BY account_id ORDER BY DATE_TRUNC('year',occurred_at))
+
+-- 							LAG & LEAD
+
+SELECT account_id,
+       standard_sum,
+       LAG(standard_sum) OVER(ORDER BY standard_sum) AS lag,
+       LEAD(standard_sum) OVER (ORDER BY standard_sum) AS lead,
+       standard_sum - LAG(standard_sum) OVER (ORDER BY standard_sum) AS lag_difference,
+       LEAD(standard_sum) OVER (ORDER BY standard_sum) - standard_sum AS lead_difference
+FROM (
+       SELECT account_id,
+              SUM(standard_qty) AS standard_sum
+       FROM orders
+       GROUP BY 1
+) sub
+
+/*
+Modify Derek's query from the previous video in the SQL Explorer below to perform this analysis. You'll need to use occurred_at and total_amt_usd in the orders table along with LEAD to do so. In your query results, there should be four columns: occurred_at, total_amt_usd, lead, and lead_difference. 	*/
+
+
+WITH
+	t1 AS (
+      SELECT occurred_at, SUM(total_amt_usd) As total_amt 
+      FROM orders
+       GROUP BY 1)
+      
+SELECT occurred_at, total_amt,
+	LEAD(total_amt) OVER (ORDER BY occurred_at) AS "lead",
+    LEAD(total_amt) OVER (ORDER BY occurred_at) - total_amt AS lead_difference
+FROM t1
+
+-- 				PERCENTILE, QUINTILE, AND QUARTILE
+
+SELECT  customer_id,
+        composite_score,
+        NTILE(100) OVER(ORDER BY composite_score) AS percentile
+FROM    customer_lead_score;
+
+/*																		1
+Use the NTILE functionality to divide the accounts into 4 levels in terms of the amount of standard_qty for their orders. Your resulting table should have the account_id, the occurred_at time for each order, the total amount of standard_qty paper purchased, and one of four levels in a standard_quartile column. */
+
+
+SELECT account_id, occurred_at, standard_qty,
+	NTILE(4) OVER (PARTITION BY account_id ORDER BY standard_qty) AS quartile
+FROM orders
+
+SELECT
+       account_id,
+       occurred_at,
+       standard_qty,
+       NTILE(4) OVER (PARTITION BY account_id ORDER BY standard_qty) AS standard_quartile
+  FROM orders 
+ ORDER BY account_id DESC
+
+ /*																		2
+ Use the NTILE functionality to divide the accounts into two levels in terms of the amount of gloss_qty for their orders. Your resulting table should have the account_id, the occurred_at time for each order, the total amount of gloss_qty paper purchased, and one of two levels in a gloss_half column.
+ */
+
+ SELECT account_id, occurred_at, gloss_qty,
+ 	NTILE(2) OVER (PARTITION BY account_id ORDER BY gloss_qty DESC) AS two_tile
+ FROM orders
+
+ SELECT
+       account_id,
+       occurred_at,
+       gloss_qty,
+       NTILE(2) OVER (PARTITION BY account_id ORDER BY gloss_qty) AS gloss_half
+  FROM orders 
+ ORDER BY account_id DESC
+
+ /* 																	3
+ Use the NTILE functionality to divide the orders for each account into 100 levels in terms of the amount of total_amt_usd for their orders. Your resulting table should have the account_id, the occurred_at time for each order, the total amount of total_amt_usd paper purchased, and one of 100 levels in a total_percentile column.
+ */
+
+ SELECT account_id, occurred_at, total_amt_usd,
+ 	NTILE(100) OVER (PARTITION BY account_id ORDER BY total_amt_usd) AS total_percentile
+ FROM orders
